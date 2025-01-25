@@ -183,93 +183,96 @@ class NotesPage extends StatelessWidget {
     var diaryState = context.watch<DiaryState>();
     var recentNotes = diaryState.sortedNotes.take(8).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        if (recentNotes.isNotEmpty)
-          Padding(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (recentNotes.isNotEmpty)
+              Padding(
             padding: const EdgeInsets.all(18.0),
             child: Center(
-              child: Text(
-                'Your Recent Notes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Text(
+                  'Your Recent Notes',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-          ),
-        if (recentNotes.isEmpty)
-          Expanded(
-            child: Center(
-              child: Text(
+                ),
+              ),
+            if (recentNotes.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Text(
                 'Create a new note to get started',
-                style: TextStyle(fontSize: 16, color: Colors.black45),
+                    style: TextStyle(fontSize: 16, color: Colors.black45),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: EdgeInsets.all(8.0),
+                  itemCount: recentNotes.length,
+                  itemBuilder: (context, index) {
+                    var note = recentNotes[index];
+                    return ListTile(
+                      title: Text(note.title),
+                      subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(note.modified)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(note.isFavorite ? Icons.favorite : Icons.favorite_border),
+                            onPressed: () {
+                              diaryState.toggleFavorite(note);
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.edit),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => NoteEditor(
+                                    note: note,
+                                    onSave: (newTitle, newBody) {
+                                      diaryState.updateNote(note, newTitle, newBody);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              diaryState.deleteNote(note);
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          )
-        else
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.all(8.0),
-              itemCount: recentNotes.length,
-              itemBuilder: (context, index) {
-                var note = recentNotes[index];
-                return ListTile(
-                  title: Text(note.title),
-                  subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(note.modified)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(note.isFavorite ? Icons.favorite : Icons.favorite_border),
-                        onPressed: () {
-                          diaryState.toggleFavorite(note);
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.edit),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NoteEditor(
-                                note: note,
-                                onSave: (newTitle, newBody) {
-                                  diaryState.updateNote(note, newTitle, newBody);
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () {
-                          diaryState.deleteNote(note);
-                        },
-                      ),
-                    ],
+          ],
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NoteEditor(
+                    onSave: (title, body) {
+                      diaryState.addNote(title, body);
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Center(
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NoteEditor(
-                      onSave: (title, body) {
-                        diaryState.addNote(title, body);
-                      },
-                    ),
-                  ),
-                );
-              },
-              child: Text('Add Note'),
-            ),
+                ),
+              );
+            },
+            child: Icon(Icons.note_add),
           ),
         ),
       ],
@@ -437,7 +440,6 @@ class _AllNotesPageState extends State<AllNotesPage> {
     );
   }
 }
-
 
 class NoteEditor extends StatelessWidget {
   final Note? note;
