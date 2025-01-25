@@ -117,14 +117,14 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 450) {
-            return Column(
-              children: [
-                Expanded(child: mainArea),
-                SafeArea(
-                  child: BottomNavigationBar(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 450) {
+              return Column(
+                children: [
+                  Expanded(child: mainArea),
+                  BottomNavigationBar(
                     items: [
                       BottomNavigationBarItem(
                         icon: Icon(Icons.home),
@@ -141,15 +141,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         selectedIndex = value;
                       });
                     },
-                  ),
-                )
-              ],
-            );
-          } else {
-            return Row(
-              children: [
-                SafeArea(
-                  child: NavigationRail(
+                  )
+                ],
+              );
+            } else {
+              return Row(
+                children: [
+                  NavigationRail(
                     extended: constraints.maxWidth >= 600,
                     destinations: [
                       NavigationRailDestination(
@@ -168,12 +166,12 @@ class _MyHomePageState extends State<MyHomePage> {
                       });
                     },
                   ),
-                ),
-                Expanded(child: mainArea),
-              ],
-            );
-          }
-        },
+                  Expanded(child: mainArea),
+                ],
+              );
+            }
+          },
+        ),
       ),
     );
   }
@@ -183,18 +181,37 @@ class NotesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var diaryState = context.watch<DiaryState>();
+    var recentNotes = diaryState.sortedNotes.take(8).toList();
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (recentNotes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(18.0),
+            child: Center(
+              child: Text(
+                'Your Recent Notes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        if (recentNotes.isEmpty)
           Expanded(
-            flex: 3,
+            child: Center(
+              child: Text(
+                'Create a new note to get started',
+                style: TextStyle(fontSize: 16, color: Colors.black45),
+              ),
+            ),
+          )
+        else
+          Expanded(
             child: ListView.builder(
-              reverse: true,
-              itemCount: diaryState.notes.length,
+              padding: EdgeInsets.all(8.0),
+              itemCount: recentNotes.length,
               itemBuilder: (context, index) {
-                var note = diaryState.notes[index];
+                var note = recentNotes[index];
                 return ListTile(
                   title: Text(note.title),
                   subtitle: Text(DateFormat('yyyy-MM-dd HH:mm').format(note.modified)),
@@ -210,54 +227,16 @@ class NotesPage extends StatelessWidget {
                       IconButton(
                         icon: Icon(Icons.edit),
                         onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              final TextEditingController _titleController = TextEditingController(text: note.title);
-                              final TextEditingController _bodyController = TextEditingController(text: note.body);
-
-                              return AlertDialog(
-                                title: Text('Edit Note'),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    TextField(
-                                      controller: _titleController,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(),
-                                        labelText: 'Title',
-                                      ),
-                                    ),
-                                    SizedBox(height: 10),
-                                    TextField(
-                                      controller: _bodyController,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(),
-                                        labelText: 'Body',
-                                      ),
-                                      maxLines: 5,
-                                    ),
-                                  ],
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      if (_titleController.text.isNotEmpty && _bodyController.text.isNotEmpty) {
-                                        diaryState.updateNote(note, _titleController.text, _bodyController.text);
-                                        Navigator.of(context).pop();
-                                      }
-                                    },
-                                    child: Text('Save'),
-                                  ),
-                                ],
-                              );
-                            },
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => NoteEditor(
+                                note: note,
+                                onSave: (newTitle, newBody) {
+                                  diaryState.updateNote(note, newTitle, newBody);
+                                },
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -273,165 +252,275 @@ class NotesPage extends StatelessWidget {
               },
             ),
           ),
-          SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  final TextEditingController _titleController = TextEditingController();
-                  final TextEditingController _bodyController = TextEditingController();
-
-                  return AlertDialog(
-                    title: Text('New Note'),
-                    content: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextField(
-                            controller: _titleController,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'Title',
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          TextField(
-                            controller: _bodyController,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'Body',
-                            ),
-                            maxLines: 5,
-                          ),
-                        ],
-                      ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NoteEditor(
+                      onSave: (title, body) {
+                        diaryState.addNote(title, body);
+                      },
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (_titleController.text.isNotEmpty && _bodyController.text.isNotEmpty) {
-                            diaryState.addNote(
-                              _titleController.text,
-                              _bodyController.text,
-                            );
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        child: Text('Add Note'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            child: Text('Add Note'),
+                  ),
+                );
+              },
+              child: Text('Add Note'),
+            ),
           ),
-          Spacer(flex: 2),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class AllNotesPage extends StatelessWidget {
+class AllNotesPage extends StatefulWidget {
+  @override
+  State<AllNotesPage> createState() => _AllNotesPageState();
+}
+
+class _AllNotesPageState extends State<AllNotesPage> {
+  String searchQuery = '';
+
   @override
   Widget build(BuildContext context) {
     var diaryState = context.watch<DiaryState>();
+    var favoriteNotes = diaryState.sortedNotes.where((note) => note.isFavorite).toList();
+    var otherNotes = diaryState.sortedNotes.where((note) => !note.isFavorite).toList();
+    var filteredFavorites = favoriteNotes
+        .where((note) => note.title.contains(searchQuery) || note.body.contains(searchQuery))
+        .toList();
+    var filteredOtherNotes = otherNotes
+        .where((note) => note.title.contains(searchQuery) || note.body.contains(searchQuery))
+        .toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: diaryState.sortedNotes.map((note) {
-        return ListTile(
-          title: Text(note.title),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Created: ${DateFormat('yyyy-MM-dd HH:mm').format(note.created)}'),
-              Text('Modified: ${DateFormat('yyyy-MM-dd HH:mm').format(note.modified)}'),
-            ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Search notes...',
+              border: OutlineInputBorder(),
+            ),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(8.0),
             children: [
-              IconButton(
-                icon: Icon(note.isFavorite ? Icons.favorite : Icons.favorite_border),
-                onPressed: () {
-                  diaryState.toggleFavorite(note);
-                },
-              ),
-              IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      final TextEditingController _titleController = TextEditingController(text: note.title);
-                      final TextEditingController _bodyController = TextEditingController(text: note.body);
-
-                      return AlertDialog(
-                        title: Text('Edit Note'),
-                        content: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextField(
-                                controller: _titleController,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  labelText: 'Title',
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              TextField(
-                                controller: _bodyController,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  labelText: 'Body',
-                                ),
-                                maxLines: 5,
-                              ),
-                            ],
-                          ),
+              if (filteredFavorites.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'Your Favorites',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ...filteredFavorites.map((note) => ListTile(
+                    title: Text(note.title),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Created: ${DateFormat('yyyy-MM-dd HH:mm').format(note.created)}'),
+                        Text('Modified: ${DateFormat('yyyy-MM-dd HH:mm').format(note.modified)}'),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.favorite),
+                          onPressed: () {
+                            diaryState.toggleFavorite(note);
+                          },
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              if (_titleController.text.isNotEmpty && _bodyController.text.isNotEmpty) {
-                                diaryState.updateNote(note, _titleController.text, _bodyController.text);
-                                Navigator.of(context).pop();
-                              }
-                            },
-                            child: Text('Save'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => NoteEditor(
+                                  note: note,
+                                  onSave: (newTitle, newBody) {
+                                    diaryState.updateNote(note, newTitle, newBody);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () {
+                            diaryState.deleteNote(note);
+                          },
+                        ),
+                      ],
+                    ),
+                  )),
+              if (filteredOtherNotes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'All Notes',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ...filteredOtherNotes.map((note) => ListTile(
+                    title: Text(note.title),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Created: ${DateFormat('yyyy-MM-dd HH:mm').format(note.created)}'),
+                        Text('Modified: ${DateFormat('yyyy-MM-dd HH:mm').format(note.modified)}'),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.favorite_border),
+                          onPressed: () {
+                            diaryState.toggleFavorite(note);
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => NoteEditor(
+                                  note: note,
+                                  onSave: (newTitle, newBody) {
+                                    diaryState.updateNote(note, newTitle, newBody);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () {
+                            diaryState.deleteNote(note);
+                          },
+                        ),
+                      ],
+                    ),
+                  )),
+              if (filteredFavorites.isEmpty && filteredOtherNotes.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'There are no notes to display',
+                      style: TextStyle(fontSize: 16, color: Colors.black45),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
+class NoteEditor extends StatelessWidget {
+  final Note? note;
+  final Function(String title, String body) onSave;
+
+  NoteEditor({this.note, required this.onSave});
+
+  @override
+  Widget build(BuildContext context) {
+    final TextEditingController titleController =
+        TextEditingController(text: note?.title);
+    final TextEditingController bodyController =
+        TextEditingController(text: note?.body);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(note == null ? 'New Note' : 'Edit Note'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (titleController.text.isNotEmpty &&
+                  bodyController.text.isNotEmpty) {
+                onSave(titleController.text, bodyController.text);
+                Navigator.pop(context);
+              }
+            },
+            child: Text(
+              'Save',
+              style: TextStyle(color: Colors.white),
+            ),
+          )
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Title',
+                ),
               ),
-              IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () {
-                  diaryState.deleteNote(note);
-                },
+              SizedBox(height: 10),
+              Expanded(
+                child: TextField(
+                  controller: bodyController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Body',
+                  ),
+                  maxLines: null,
+                  expands: true,
+                ),
+              ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (titleController.text.isNotEmpty &&
+                          bodyController.text.isNotEmpty) {
+                        onSave(titleController.text, bodyController.text);
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text(note == null ? 'Create Note' : 'Save Note'),
+                  ),
+                ],
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 }
